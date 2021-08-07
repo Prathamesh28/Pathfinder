@@ -1,8 +1,12 @@
 import React, { Component } from 'react';
 import Node from './Node/Node';
 import { dijkstra, getNodesInShortestPathOrder } from '../algorithms/dijkstra';
-
+import { Dropdown, DropdownButton, Button } from 'react-bootstrap'
 import './PathfindingVisualizer.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { astar } from '../algorithms/astar';
+import { dfs } from '../algorithms/dfs';
+import { bfs } from '../algorithms/bfs';
 
 let startNodeRow = 10;
 let startNodeCol = 15;
@@ -16,10 +20,11 @@ export default class PathfindingVisualizer extends Component {
       grid: [],
       mouseIsPressed: false,
       moveStart: false,
+      currentAlgorithm: "",
       moveFinish: false,
+      runningAlgorithm: false,
     };
   }
-
   componentDidMount() {
     const grid = getInitialGrid();
     this.setState({ grid });
@@ -63,7 +68,7 @@ export default class PathfindingVisualizer extends Component {
     this.setState({ moveStart: false, moveFinish: false, mouseIsPressed: false });
   }
 
-  animateDijkstra(visitedNodesInOrder, nodesInShortestPathOrder) {
+  animate(visitedNodesInOrder, nodesInShortestPathOrder) {
     for (let i = 0; i <= visitedNodesInOrder.length; i++) {
       if (i === visitedNodesInOrder.length) {
         setTimeout(() => {
@@ -96,6 +101,10 @@ export default class PathfindingVisualizer extends Component {
         }, 50 * i);
       }
     }
+    setTimeout(() => {
+      this.setState({runningAlgorithm : false});
+    },50*nodesInShortestPathOrder.length)
+    
   }
   clearPath(wall) {
     const newGrid = this.state.grid.slice();
@@ -123,31 +132,67 @@ export default class PathfindingVisualizer extends Component {
     }
     this.setState({ grid: newGrid });
   }
-  visualizeDijkstra() {
+  visualizeSelectedAlgorithm = () => {
+    if(this.state.currentAlgorithm === ""){
+      this.showError();
+      return;
+    };
+    this.setState({runningAlgorithm : true});
     const { grid } = this.state;
     const startNode = grid[startNodeRow][startNodeCol];
     const finishNode = grid[finishNodeRow][finishNodeCol];
-    const visitedNodesInOrder = dijkstra(grid, startNode, finishNode);
+    const visitedNodesInOrder = this.runSelectedAlgorithm(grid, startNode, finishNode);
     const nodesInShortestPathOrder = getNodesInShortestPathOrder(finishNode);
     this.clearPath(false);
-    this.animateDijkstra(visitedNodesInOrder, nodesInShortestPathOrder);
+    this.animate(visitedNodesInOrder, nodesInShortestPathOrder);
   }
+  showError(){
+    alert("Please select an Algorithm");
+  }
+  runSelectedAlgorithm(grid,startNode,finishNode){
+    //console.log(this.state.currentAlgorithm + "?");
+    switch (this.state.currentAlgorithm) {
+      case "Dijstra":
+        return dijkstra(grid,startNode,finishNode);
+      case "Astar":
+        return astar(grid,startNode,finishNode);
+      case "DFS":
+        return dfs(grid,startNode,finishNode);
+      case "BFS":
+        return bfs(grid,startNode,finishNode);
+      default:
+        this.showError();
+    }
+  }
+  handleChange = (e) => {
+    console.log(e);
+    this.setState({currentAlgorithm : e});
+  } 
 
   render() {
     const { grid, mouseIsPressed } = this.state;
-
     return (
       <>
         <div className="console">
-          <button className="startAlgorithm" onClick={() => this.visualizeDijkstra()}>
-            Visualize Dijkstra's Algorithm
-          </button>
-          <button className="clearPath" onClick={() => this.clearPath(false)}>
+        <DropdownButton id="dropdown-basic-button" title={this.state.currentAlgorithm === "" ? "Select Algorithm" : this.state.currentAlgorithm} onSelect={this.handleChange}>
+          <Dropdown.Item eventKey="Dijstra">Dijkstra</Dropdown.Item>
+          <Dropdown.Item eventKey="Astar">A*</Dropdown.Item>
+          <Dropdown.Item eventKey="DFS">DFS</Dropdown.Item>
+          <Dropdown.Item eventKey="BFS">BFS</Dropdown.Item>
+        </DropdownButton>
+        <Button
+      variant="success"
+      disabled={this.state.runningAlgorithm}
+      onClick={!this.state.runningAlgorithm ? this.visualizeSelectedAlgorithm : null}
+    >
+      Start {this.state.currentAlgorithm}
+    </Button>
+          <Button className="clearPath" variant="info" onClick={() => this.clearPath(false)}>
             Clear Path
-          </button>
-          <button className="clearWall" onClick={() => this.clearPath(true)}>
+          </Button>
+          <Button className="clearWall" variant="info" onClick={() => this.clearPath(true)}>
             Clear Walls
-          </button>
+          </Button>
         </div>
 
         <div className="grid">
@@ -203,6 +248,9 @@ const createNode = (col, row) => {
     distance: Infinity,
     isVisited: false,
     isWall: false,
+    f:0,
+    g:0,
+    h:0,
     previousNode: null,
   };
 };
